@@ -1,0 +1,273 @@
+---
+title: "LanguageExperimentAnalysis"
+author: "Jordi Ren"
+date: "20th Aug 2025"
+output: html_document
+knit: (function(input, ...) {
+  rmarkdown::render(input,
+                    output_file = "LanguageExperimentAnalysis.html",
+                    output_dir  = "reports",
+                    ...)
+                    })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Library loading
+
+```{r libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library(xlsx)
+library(dplyr)
+library(ggplot2)
+```
+
+# Data reading
+
+```{r ReadData, echo=TRUE, warning=FALSE, , cache=TRUE}
+data <- read.xlsx("data/results_false.xlsx", sheetIndex = 1)
+factor_cols <- c("subject", "session", "language", "sex",
+                 "test.category", "test.number", "trial")
+data[factor_cols] <- lapply(data[factor_cols], as.factor)
+data$ACC <- as.numeric(data$ACC)
+str(data)
+```
+
+After reading the data, some columns are set to factors so that we can work with them with more ease afterwards.  
+
+You will also notice that there are 3 categories in the variable *sex*, as some registries contain an empty space after the word *"female"*. We will fix this little issue first.  
+
+```{r FixSexCategory, echo=TRUE, warning=FALSE}
+data$sex[which(data$sex == "female ")] <- "female"
+data$sex <- factor(data$sex)
+summary(data)
+```
+
+NAs are also checked just in case.  
+
+```{r NAsCheck, echo=TRUE, warning=FALSE}
+table(is.na(data))
+```
+
+# (Initial) Descriptive analysis
+
+Here, we will first create a summarized data frame to get some averaged data per subject so we can have a general idea of our data through some descriptive plots.  
+
+```{r DescriptiveAnalysis, echo=TRUE, warning=FALSE}
+subject_info <- data %>%
+  group_by(subject) %>%
+  summarise(
+    session  = first(session),
+    language = first(language),
+    age      = first(age),
+    sex      = first(sex),
+    ACC      = sum(ACC),
+    .groups = "drop"
+  )
+```
+
+## Age distribution
+
+We will start checking the distribution of the age of the subjects.
+
+```{r AgeDistributionPlot, echo=TRUE, warning=FALSE}
+ggplot(subject_info, aes(x = age)) +
+  geom_histogram(binwidth = 1, fill = "skyblue",
+                 color = "white", linewidth = 0.2) +
+  labs(title = "Age Distribution of Participants",
+       x = "Age", y = "Count")
+```
+
+It could also be interesting to see the distribution per language group:  
+
+```{r AgePerLanguage, echo=TRUE, warning=FALSE}
+ggplot(subject_info, aes(x = age)) +
+  geom_histogram(binwidth = 1, fill = "skyblue",
+                 color = "white", linewidth = 0.2) +
+  facet_wrap(~ language) +
+  scale_y_continuous(limits = c(0, 12), breaks = seq(0, 12, 2)) +
+  labs(title = "Age Distribution of Participants",
+       x = "Age", y = "Count")
+```
+
+## Sex distribution
+
+Here we will also plot the overall proportion as well as per language groups.   
+
+```{r SexDistribution, echo=TRUE, warning=FALSE}
+sex_counts <- subject_info %>%
+  count(sex) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+ggplot(sex_counts, aes(x = "", y = percentage, fill = sex)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Sex Proportions", fill = "Sex",
+       x = NULL, y = NULL) +
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank()) +
+  geom_text(aes(label = paste0(round(percentage, 2), "%")),
+            position = position_stack(vjust = 0.5))
+```
+```{r SexDistributionPerLanguage, echo=TRUE, warning=FALSE}
+sex_counts <- subject_info %>%
+  count(language, sex) %>%
+  group_by(language) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+ggplot(sex_counts, aes(x = "", y = percentage, fill = sex)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  facet_wrap(~ language) +
+  labs(title = "Sex Proportions by Language", fill = "Sex",
+       x = NULL, y = NULL) +
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank()) +
+  geom_text(aes(label = paste0(round(percentage, 2), "%")),
+            position = position_stack(vjust = 0.5))
+```
+
+## Accuracy per Language group
+
+To have a general idea of the overall ACC reached by the subjects per language group, we will plot a boxplot. The boxes highlight where the middle half of the values lie, with the line inside marking the typical (median) value. The “whiskers” extend to the usual minimum and maximum, while any dots beyond them show unusually high or low values.  
+
+```{r ACCperLanguage, echo=TRUE, message=FALSE, warning=FALSE}
+subject_info %>%
+  group_by(language, subject) %>%
+  summarise(acc = sum(ACC, na.rm = TRUE)) %>%
+  ggplot(aes(x = language, y = acc, fill = language)) +
+  geom_boxplot() +
+  labs(title = "Accuracy by Language",
+       x = "Language",
+       y = "Accuracy")
+```
+
+
+## ACC by sex and language
+
+To have a general idea of whether there are differences or not in ACC between sex categories, we plot the mean ACC among subjects per sex and split them per Language group:  
+
+```{r ACCperSexLang, echo=TRUE, message=FALSE, warning=FALSE}
+subject_info %>%
+  group_by(language, sex) %>%
+  summarise(acc = mean(ACC, na.rm = TRUE)) %>%
+  ggplot(aes(x = language, y = acc, fill = sex)) +
+  geom_col(position = "dodge") +
+  labs(title = "Mean Accuracy by Language and Sex",
+       x = "Language",
+       y = "Accuracy")
+```
+
+
+## Accuracy over Test
+
+The following scatterplot helps us to observe the evolution of the mean ACC among subjects per Language class throught the different tests:  
+
+```{r ACCoverTest, echo=TRUE, message=FALSE, warning=FALSE}
+data <- data %>%
+  mutate(test.number = factor(test.number,
+                              levels = c("test1", "test2",
+                                         "test3", "exam")))
+data %>%
+  group_by(test.number, language) %>%
+  summarise(acc = mean(ACC*100, na.rm = TRUE)) %>%
+  ggplot(aes(x = test.number, y = acc,
+             group = language, color = language)) +
+    stat_summary(fun = mean, geom = "line") +
+    labs(title = "Accuracy over Test by Language",
+         x = "Test",
+         y = "Accuracy")
+```
+
+
+# Reaction Time per Language group
+
+Similar to the previous boxplot, he we will see how are distributed the Reaction Times (RT).  
+
+```{r RTperLanguage, echo=TRUE, warning=FALSE}
+ggplot(data, aes(x = language, y = RT, fill = language)) +
+  geom_boxplot() +
+  labs(title = "Reaction Time by Language",
+       x = "Language",
+       y = "RT (ms)")
+```
+
+Here, it could be more interesting to see the RT per test though:  
+
+```{r RT_Lang_Test, echo=TRUE, warning=FALSE}
+ggplot(data, aes(x = test.number, y = RT, fill = language)) +
+  geom_boxplot() +
+  labs(title = "Reaction Time per Test by Language",
+       x = "Test Number",
+       y = "RT (ms)") +
+  theme_classic()
+```
+
+So, as we expected, RTs are higher mainly in **Test1**, while it seems quite similar for the remaining tests and exam.  
+
+
+## RT distribution
+
+To observe the real distribution of the reaction times, we will use histograms. This will also give some valuable insights for the ANOVA tests that we will perform later.  
+
+```{r RTdistribution, echo=TRUE, warning=FALSE}
+ggplot(data, aes(x = RT)) +
+  geom_histogram(binwidth = 100, fill = "skyblue",
+                 color = "white", linewidth = 0.2) +
+  facet_wrap(~ language) +
+  labs(title = "Distribution of Reaction Times by Language",
+       x = "Reaction Time (ms)",
+       y = "Count")
+```
+
+
+## 
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
+
+```{r , echo=TRUE, warning=FALSE}
+
+```
