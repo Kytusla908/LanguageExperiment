@@ -79,7 +79,7 @@ subject_info %>%
 ggsave("plots/DescAnalysis_boxplot_ACCbyLanguage.png", device = "png",
        width = 16, height = 12, units = "cm", dpi = 500, create.dir = T)
 
-## RT by language ============0
+## RT by language ============
 ggplot(data, aes(x = language, y = RT, fill = language)) +
   geom_boxplot() +
   labs(title = "Reaction Time by Language",
@@ -98,6 +98,8 @@ subject_info %>%
   labs(title = "Mean Accuracy by Language and Sex",
        x = "Language",
        y = "Accuracy")
+ggsave("plots/DescAnalysis_hist_ACCbysexlang.png", device = "png",
+       width = 16, height = 12, units = "cm", dpi = 500, create.dir = T)
 
 ## RT distribution ==========
 ggplot(data, aes(x = RT)) +
