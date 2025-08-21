@@ -6,7 +6,7 @@ output: html_document
 knit: (function(input, ...) {
   rmarkdown::render(input,
                     output_file = "LanguageExperimentAnalysis.html",
-                    output_dir  = "reports",
+                    output_dir  = "docs",
                     ...)
                     })
 ---
