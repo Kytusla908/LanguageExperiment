@@ -189,7 +189,7 @@ data %>%
 ```
 
 
-# Reaction Time per Language group
+## Reaction Time per Language group
 
 Similar to the previous boxplot, he we will see how are distributed the Reaction Times (RT).  
 
@@ -230,15 +230,87 @@ ggplot(data, aes(x = RT)) +
 ```
 
 
-## 
+# ANOVA
 
-```{r , echo=TRUE, warning=FALSE}
+ANOVA, short for *Analysis of Variance*, is a statistical method used to compare the averages of several groups at once. Instead of checking only two groups (like in a t-test), ANOVA can test three or more groups to see if at least one of them has a different average. It works by comparing the variation within each group to the variation between groups. If the differences between groups are much larger than the differences inside the groups, ANOVA concludes that not all group means are the same. In simple terms, ANOVA helps answer the question: *“Are these groups really different, or could the differences just be due to random chance?”*  
 
+For this test to give reliable results, the data has to meet some conditions:  
+
+1. The groups being compared should be independent of each other (here we will asume it's true due to the experimental design).
+2. The values inside each group should roughly follow a normal distribution (bell-shaped).
+3. The groups should have similar levels of variation (homogeneity of variances or **homoscedasticity**).  
+
+If these conditions are not met, the conclusions from ANOVA may be misleading.  
+
+Here we will start by building the different data frames with the data per subject that we want to contrast:  
+
+```{r ANOVASetDataFrames, echo=TRUE, warning=FALSE}
+ACC_per_subj <- data %>%
+  group_by(subject) %>%
+  summarise(language = first(language),
+            ACC = sum(ACC),
+            .groups = "drop"
+            ) %>%
+  select(-subject)
+
+RT_per_subj <- data %>%
+  group_by(subject) %>%
+  summarise(language = first(language),
+            RT = mean(RT),
+            .groups = "drop"
+            ) %>%
+  select(-subject)
+
+RT_test1 <- data %>%
+  filter(test.number == "test1") %>%
+  group_by(subject, test.number) %>%
+  summarise(language = first(language),
+            RT = mean(RT),
+            .groups = "drop"
+            ) %>%
+  select(-c(subject, test.number))
+
+RT_test2 <- data %>%
+  filter(test.number == "test2") %>%
+  group_by(subject, test.number) %>%
+  summarise(language = first(language),
+            RT = mean(RT),
+            .groups = "drop"
+            ) %>%
+  select(-c(subject, test.number))
+
+RT_test3 <- data %>%
+  filter(test.number == "test3") %>%
+  group_by(subject, test.number) %>%
+  summarise(language = first(language),
+            RT = mean(RT),
+            .groups = "drop"
+            ) %>%
+  select(-c(subject, test.number))
+
+RT_exam <- data %>%
+  filter(test.number == "exam") %>%
+  group_by(subject, test.number) %>%
+  summarise(language = first(language),
+            RT = mean(RT),
+            .groups = "drop"
+            ) %>%
+  select(-c(subject, test.number))
 ```
 
-```{r , echo=TRUE, warning=FALSE}
+To have a quick glance of how does the data look like:  
 
+```{r DFsummary, echo=TRUE, warning=FALSE}
+summary(ACC_per_subj)
+summary(RT_per_subj)
+summary(RT_test1)
 ```
+
+But still, the questions to answer is quite unclear:  
+- **What do we want to compare?**  
+- **Which effects do we want to take into account?**  
+  - How many fixed effects? (Only language? Or Lang + Test?)  
+  - Effects of interactions are taken into account if we do ANOVA of 2 or more factors?  
 
 ```{r , echo=TRUE, warning=FALSE}
 
